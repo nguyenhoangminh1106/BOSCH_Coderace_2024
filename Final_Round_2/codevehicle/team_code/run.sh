@@ -1,0 +1,1 @@
+cd scripts && python3 evaluate.py

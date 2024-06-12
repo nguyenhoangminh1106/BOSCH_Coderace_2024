@@ -1,0 +1,5 @@
+config_path: ${oc.env:TEAM_CODE_ROOT}/configs/driver/baseline.yaml
+output_path: "${oc.env:DATA_PATH}"
+driver: 'drivers.baseline_driver'
+object_detection: 'perception.fake_object_detection'
+localization: 'localization.fake_localization'

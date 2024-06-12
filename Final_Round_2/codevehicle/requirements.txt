@@ -1,0 +1,17 @@
+decorator==4.4.2
+dictor==0.1.7
+ephem
+Hydra==2.5
+hydra-core==1.1.1
+matplotlib==3.4.2
+networkx
+numpy==1.20.3
+psutil
+py-trees==0.8.3
+pygame==2.0.1
+requests==2.25.1
+scipy==1.6.3
+simple-watchdog-timer==0.1.1
+tabulate==0.8.9
+Shapely
+opencv-python

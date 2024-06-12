@@ -1,0 +1,15 @@
+driver:
+  config_path: ${oc.env:TEAM_CODE_ROOT}/configs/driver/baseline.yaml
+  output_path: ${oc.env:DATA_PATH}
+  driver: drivers.baseline_driver
+  object_detection: perception.fake_object_detection
+  localization: localization.fake_localization
+route:
+  name: coderace
+  scenario: coderace_scenario
+host: 192.168.100.10
+port: 2000
+carla_timeout: 3000.0
+track: MAP
+agent: coderace_agent
+output_path: ${oc.env:DATA_PATH}
