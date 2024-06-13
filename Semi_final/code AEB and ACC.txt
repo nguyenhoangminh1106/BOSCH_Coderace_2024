@@ -1,0 +1,138 @@
+from pybricks.hubs import InventorHub
+from pybricks.pupdevices import Motor, ColorSensor,UltrasonicSensor
+from pybricks.parameters import Port, Button, Stop
+from pybricks.tools import wait
+
+# Tuning parameters
+SPEED_MAX = 500
+SPEED_TURN = 400
+SPEED_OFFLINE = 500
+speed_decrease=0
+# Initialize the hub, motors, and sensor
+hub = InventorHub()
+steer_motor = Motor(Port.F)
+drive_motor = Motor(Port.B)
+sensor = ColorSensor(Port.A)
+distance_sensor=UltrasonicSensor(Port.E)
+def wait_for_button(b):
+    # Wait for press
+    while b not in hub.buttons.pressed():
+        wait(10)
+    # and release
+    while b in hub.buttons.pressed():
+        wait(10)
+
+def get_light():
+    return sensor.hsv().v
+
+def calibrate():
+    global a_steer_limit
+    global l_min, l_max, sign_edge
+
+    a_steer_limit=80
+    # steer_motor.reset_angle(-a_steer_limit)
+    steer_motor.reset_angle(0)
+    print("steer_motor.angle(): {}".format(steer_motor.angle()))
+    # Scan from -30 to 30 to get min max of light sensor value
+    steer_motor.run_target(1000, -30, then=Stop.BRAKE)
+    l_min = 1024
+    l_max = 0
+    l_left = get_light()
+    steer_motor.run(150)
+    print("begin check")
+    while steer_motor.angle() < 30:
+        light = get_light()
+        if light > l_max:
+            l_max = light
+        if light < l_min:
+            l_min = light
+        wait(5)
+    print("end check")
+    print("Max: {} and min: {} and middle {}".format(l_max,l_min,(l_max + l_min + 10) // 2))
+    steer_motor.stop()
+    l_right = get_light()
+    # sign_edge is positive 1 if left edge and -1 if right edge
+    # sign_edge = 1 if l_left < l_right else -1
+    sign_edge = -1
+    # Center the steering
+    steer_motor.run_target(1000, 0, then=Stop.BRAKE, wait=False)
+    wait(1000)
+def dynamic_calibration(light):
+    global l_min, l_max
+    # Adjust min and max light values dynamically
+    if light > l_max:
+        l_max = light
+    if light < l_min:
+        l_min = light
+    l_mid = (l_max + l_min + 10)
+    l_off_edge_thresh = (l_max - l_mid) * 0.7
+
+def average_sensor_reading(samples=5):
+    readings = [get_light() for _ in range(samples)]
+    return sum(readings) // samples
+
+def track_speed_control():
+    # l_mid = (l_max + l_min + 10) // 2
+    a_steer_limit=80
+    # steer_motor.reset_angle(-a_steer_limit)
+    steer_motor.reset_angle(0)
+    sign_edge = -1
+    l_max=37#31
+    l_mid=20#15
+    m = 20.0 / (l_max - l_mid)
+    print("m: {}".format(m))
+    # Calculate a threshold to determine steering is not near the edge
+    l_off_edge_thresh = (l_max - l_mid) * 0.7
+    steer_motor.run(100)
+    # Set max speed, acceleration, and max power for drive motor
+    drive_motor.stop()  # must be stopped to set limits
+    drive_motor.control.limits(1500, 2000, 110)
+
+    while not any(hub.buttons.pressed()):
+        # Get a new light value and subtract mid to get signed error
+        # from edge
+        light = sign_edge * (get_light() - l_mid)
+        # dynamic_calibration(light)  # Adjust calibration dynamically
+
+        # Create a new target for the steering motor to move toward
+        # the approximate position of the edge
+        a = steer_motor.angle()
+        t = a - m * light
+
+        # Clamp the target angle to within +- a_steer_limit
+        t = min(t, a_steer_limit)
+        t = max(t, -a_steer_limit)
+
+        # Now update target to move toward edge of line
+        steer_motor.track_target(t)
+        while distance_sensor.distance()<=200:
+            drive_motor.stop()
+        if 200<=distance_sensor.distance()<=200+drive_motor.speed():
+            speed_decrease=int(-4*distance_sensor.distance()/5+560)
+        else:
+            speed_decrease=0
+        # Speed control
+        print(drive_motor.speed())
+        if abs(light) < l_off_edge_thresh:
+            # On edge of line
+            if abs(t) < 25:
+                # and going straight
+                drive_motor.run(SPEED_MAX-speed_decrease)
+            else:
+                drive_motor.run(SPEED_TURN-speed_decrease)
+        else:
+            drive_motor.run(SPEED_OFFLINE)
+        wait(3)
+
+    drive_motor.run(0)
+    steer_motor.track_target(0)
+    wait(200)
+    steer_motor.stop()
+    drive_motor.stop()
+
+    while not any(hub.buttons.pressed()):
+        wait(10)
+
+while True:
+    wait_for_button(Button.RIGHT)
+    track_speed_control()
